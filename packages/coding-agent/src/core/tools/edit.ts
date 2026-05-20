@@ -1,5 +1,6 @@
 import type { AgentTool } from "@earendil-works/pi-agent-core";
 import { Box, Container, Spacer, Text } from "@earendil-works/pi-tui";
+import * as Diff from "diff";
 import { constants } from "fs";
 import { access as fsAccess, readFile as fsReadFile, writeFile as fsWriteFile } from "fs/promises";
 import { type Static, Type } from "typebox";
@@ -57,8 +58,10 @@ type LegacyEditToolInput = EditToolInput & {
 };
 
 export interface EditToolDetails {
-	/** Unified diff of the changes made */
+	/** Display-oriented diff of the changes made */
 	diff: string;
+	/** Standard unified patch of the changes made */
+	patch: string;
 	/** Line number of the first change in the new file (for editor navigation) */
 	firstChangedLine?: number;
 }
@@ -394,6 +397,17 @@ export function createEditToolDefinition(
 								}
 
 								const diffResult = generateDiffString(baseContent, newContent);
+								const patch = Diff.createTwoFilesPatch(
+									path,
+									path,
+									baseContent,
+									newContent,
+									undefined,
+									undefined,
+									{
+										context: 4,
+									},
+								);
 								resolve({
 									content: [
 										{
@@ -401,7 +415,7 @@ export function createEditToolDefinition(
 											text: `Successfully replaced ${edits.length} block(s) in ${path}.`,
 										},
 									],
-									details: { diff: diffResult.diff, firstChangedLine: diffResult.firstChangedLine },
+									details: { diff: diffResult.diff, patch, firstChangedLine: diffResult.firstChangedLine },
 								});
 							} catch (error: unknown) {
 								// Clean up abort handler.
